@@ -83,7 +83,11 @@ jobs:
       - name: Install feeds
         run: |
           ./scripts/feeds install -a
-
+          
+      - name: Costom configure file
+        run: |
+          make defconfig
+          
       - name: Download package source code
         run: |
           make download -j$(nproc)
