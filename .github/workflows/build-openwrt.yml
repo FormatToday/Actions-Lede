@@ -122,7 +122,7 @@ jobs:
       - name: Deliver firmware to artifact
         uses: actions/upload-artifact@v3
         with:
-          path: ./bin/targets/
+          path: ./bin/targets/*/*/*.img
 
       - name: Deliver firmware to release
         uses: softprops/action-gh-release@v1
@@ -131,7 +131,7 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           body_path: release.txt
-          files: ./bin/targets/
+          files: ./bin/targets/*/*/*.img
 
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2.0.3
