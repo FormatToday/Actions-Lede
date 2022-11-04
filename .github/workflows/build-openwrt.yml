@@ -96,11 +96,15 @@ jobs:
         run: |
           make -j$(nproc) || make -j1 || make -j1 V=s
 
+      - name: Delete other files
+        run: |
+          rm -rf ./bin/targets/*/*/!(openwrt*combined*.img)
+  
       - name: Deliver firmware to WeTransfer
         id: wetransfer
         run: |
           curl -fsSL git.io/file-transfer | sh
-          ./transfer wet -s -p 16 --no-progress ./bin/targets/**/openwrt*combined*.img 2>&1 | tee wetransfer.log
+          ./transfer wet -s -p 16 --no-progress ./bin/targets/ 2>&1 | tee wetransfer.log
           echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
           echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
 
@@ -115,7 +119,7 @@ jobs:
       - name: Deliver firmware to artifact
         uses: actions/upload-artifact@v3
         with:
-          path: ./bin/targets/**/openwrt*combined*.img
+          path: ./bin/targets/
 
       - name: Deliver firmware to release
         uses: softprops/action-gh-release@v1
@@ -124,20 +128,20 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           body_path: release.txt
-          files: ./bin/targets/**/openwrt*combined*.img
+          files: ./bin/targets/
 
       - name: Delete workflow runs
-        uses: GitRML/delete-workflow-runs@main
+        uses: Mattraks/delete-workflow-runs@v2.0.3
         with:
           token: ${{ secrets.TOKEN }}
           repository: ${{ github.repository }}
           retain_days: 1
-          keep_minimum_runs: 15
+          keep_minimum_runs: 5
 
       - name: Remove old Releases
         uses: smallprogram/delete-older-releases@v0.2.1
         with:
-          keep_latest: 15
+          keep_latest: 3
           delete_tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
