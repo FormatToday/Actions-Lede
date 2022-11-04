@@ -98,7 +98,10 @@ jobs:
 
       - name: Delete other files
         run: |
-          find * | grep -v openwrt*combined*.img | xargs rm -rf
+          ls ./bin/targets/*/*/
+          shopt -s extglob
+          rm -rf ./bin/targets/*/*/!(openwrt*combined*.img)
+          ls ./bin/targets/*/*/
   
       - name: Deliver firmware to WeTransfer
         id: wetransfer
