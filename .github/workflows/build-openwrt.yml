@@ -10,7 +10,7 @@ on:
     branches: 
       - main
   schedule:
-    - cron: 0 0 1 * *
+    - cron: 0 20 * * *
   watch:
     types: started
   workflow_dispatch:
@@ -18,8 +18,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.event.repository.owner.id == github.event.sender.id
-
+    
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -37,42 +36,30 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          sudo timedatectl set-timezone "Asia/Shanghai"
           docker rmi `docker images -q`
-          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
-          sudo -E apt -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
-          
+          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android /opt/ghc
+          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
+          df -h
+
       - name: Init environment
         env:
           DEBIAN_FRONTEND: noninteractive
-          run: |
-            sudo -E apt -yqq update
-            sudo -E apt -yqq install ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pip libpython3-dev qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-            sudo -E apt -y autoremove --purge
-            sudo -E apt clean
-
+        run: |
+          sudo -E apt-get -yqq update
+          sudo -E apt-get -yqq install ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pip libpython3-dev qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get clean
+          
       - name: Clone OpenWrt code
         run: |
           git clone https://github.com/coolsnowwolf/lede
-          cp .config ./lede/.config
           mv ./lede/* ./
 
       - name: Install Helloword
         run: |
-          sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
-
-      # - name: Install OpenClash
-      #   run: |
-      #     mkdir package/luci-app-openclash
-      #     cd package/luci-app-openclash
-      #     git init
-      #     git remote add -f origin https://github.com/vernesong/OpenClash.git
-      #     git config core.sparsecheckout true
-      #     echo "luci-app-openclash" >> .git/info/sparse-checkout
-      #     git pull --depth 1 origin master
-      #     git branch --set-upstream-to=origin/master master
-      #     pushd luci-app-openclash/tools/po2lmo
-      #     make && sudo make install
-      #     popd
+          sed -i "/helloworld/d" "feeds.conf.default"
+          echo "src-git helloworld https://github.com/fw876/helloworld.git" >> "feeds.conf.default"
 
       - name: Update feeds
         run: |
@@ -81,31 +68,59 @@ jobs:
       - name: Install feeds
         run: |
           ./scripts/feeds install -a
-
-
+          
       - name: Costom configure file
         run: |
           make defconfig
           cp .config ./lede/.config
-
+          
       - name: Download package source code
         run: |
-          echo -e "$(nproc) 线程下载。"
           make download -j$(nproc)
 
       - name: Compile firmware
         run: |
-          echo -e "$(nproc) 线程编译。"
-          make -j$(nproc) V=s
+          make -j$(nproc) || make -j1 || make -j1 V=s
 
-      - name : Upload artifact
-        uses: actions/upload-artifact@master
+      - name: Delete other files
+        run: |
+          ls ./bin/targets/*/*/
+          shopt -s extglob
+          rm -rf ./bin/targets/*/*/!(openwrt*combined*.img)
+          ls ./bin/targets/*/*/
+  
+      - name: Deliver firmware to WeTransfer
+        id: wetransfer
+        run: |
+          curl -fsSL git.io/file-transfer | sh
+          ./transfer wet -s -p 16 --no-progress ./bin/targets/ 2>&1 | tee wetransfer.log
+          echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
+          echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+          touch release.txt
+          echo "🔗 [镜像下载链接](${{ steps.wetransfer.outputs.url }})" >> release.txt
+          echo "::set-output name=status::success"
+
+      - name: Deliver firmware to artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: OpenWrt_firmware
-          path: bin/targets/
+          path: ./bin/targets/*/*/*.img
+
+      - name: Deliver firmware to release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          body_path: release.txt
+          files: ./bin/targets/*/*/*.img
 
       - name: Delete workflow runs
-        uses: GitRML/delete-workflow-runs@main
+        uses: Mattraks/delete-workflow-runs@v2.0.3
         with:
           token: ${{ secrets.TOKEN }}
           repository: ${{ github.repository }}
@@ -114,11 +129,8 @@ jobs:
 
       - name: Remove old Releases
         uses: smallprogram/delete-older-releases@v0.2.1
-        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
-          keep_latest: 15
+          keep_latest: 3
           delete_tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
-       
-          
