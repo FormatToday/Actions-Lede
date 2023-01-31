@@ -2,7 +2,7 @@
 
 
 # Actions-OpenWrt
-使用 Github Actions 每周五20点自动编译 OpenWrt 固件
+使用 Github Actions 每周一、三、五20点自动编译 OpenWrt 固件
 
 源码仓库 https://github.com/coolsnowwolf/lede
 
