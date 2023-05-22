@@ -89,20 +89,11 @@ jobs:
           rm -rf ./bin/targets/*/*/!(openwrt*combined*.img)
           ls ./bin/targets/*/*/
   
-      - name: 上传固件到 WeTransfer
-        id: wetransfer
-        run: |
-          curl -fsSL git.io/file-transfer | sh
-          ./transfer wet -s -p 16 --no-progress ./bin/targets/ 2>&1 | tee wetransfer.log
-          echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
-          echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
-
       - name: 生成发行标签
         id: tag
         run: |
           echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
           touch release.txt
-          echo "🔗 [镜像下载链接](${{ steps.wetransfer.outputs.url }})" >> release.txt
           echo "::set-output name=status::success"
 
       - name: 上传固件到制品库
