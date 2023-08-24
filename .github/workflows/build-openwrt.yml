@@ -71,8 +71,8 @@ jobs:
           
       - name: 复制自定义配置文件
         run: |
-          make defconfig
           cp .config ./lede/.config
+          make defconfig
           
       - name: 下载包
         run: |
