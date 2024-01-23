@@ -92,9 +92,9 @@ jobs:
       - name: 生成发行标签
         id: tag
         run: |
-          echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+          echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
-          echo "::set-output name=status::success"
+          echo "status=success" >> $GITHUB_OUTPUT
 
       - name: 上传固件到制品库
         uses: actions/upload-artifact@main
