@@ -30,7 +30,6 @@ jobs:
         uses: klever1988/cachewrtbuild@main
         with:
           ccache: 'true'
-          prefix: 'openwrt'
           
       - name: 空间清理
         env:
