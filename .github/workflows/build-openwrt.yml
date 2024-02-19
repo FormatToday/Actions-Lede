@@ -26,12 +26,6 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      # - name: 缓存
-      #   uses: klever1988/cachewrtbuild@main
-      #   with:
-      #     ccache: 'true'
-      #     toolchain: 'false'
-
       - name: 空间清理
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -40,6 +34,8 @@ jobs:
           docker rmi `docker images -q`
           sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android /opt/ghc
           sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
+          sudo -E apt-get -y 自动清理
+          sudo -E apt-get -y autoremove
           df -h
 
       - name: 初始化环境
@@ -80,7 +76,7 @@ jobs:
 
       - name: 编译
         run: |
-          make -j$(nproc) || make -j1 || make -j1 V=s
+          make -j$(nproc) || make -j1
 
       - name: 删除其他文件
         run: |
