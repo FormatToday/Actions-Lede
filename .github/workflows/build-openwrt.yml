@@ -25,13 +25,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          
-      - name: 缓存
-        uses: klever1988/cachewrtbuild@main
-        with:
-          ccache: 'true'
-          toolchain: 'false'
-          
+                
       - name: 空间清理
         env:
           DEBIAN_FRONTEND: noninteractive
